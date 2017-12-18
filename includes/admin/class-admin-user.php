@@ -5,8 +5,8 @@
  * @package   Admin/User
  * @author    Julien Liabeuf <julien@liabeuf.fr>
  * @license   GPL-2.0+
- * @link      http://themeavenue.net
- * @copyright 2014 ThemeAvenue
+ * @link      https://getawesomesupport.com
+ * @copyright 2014-2017 AwesomeSupport
  */
 
 class WPAS_User {
@@ -25,7 +25,6 @@ class WPAS_User {
 		add_action( 'personal_options_update',    array( $this, 'save_user_custom_fields' ) );    // Save the user preferences
 		add_action( 'edit_user_profile_update',   array( $this, 'save_user_custom_fields' ) );    // Save the user preferences when modified by admins
 		add_action( 'user_register',              array( $this, 'enable_assignment' ), 10, 1 );   // Enable auto-assignment for new users
-//		add_action( 'profile_update',             array( $this, 'maybe_enable_assignment' ), 10, 2 );
 		add_filter( 'manage_users_columns',       array( $this, 'auto_assignment_user_column' ) );
 		add_filter( 'manage_users_custom_column', array( $this, 'auto_assignment_user_column_content' ), 10, 3 );
 
@@ -36,7 +35,6 @@ class WPAS_User {
 		add_action( 'wpas_user_profile_fields', array( $this, 'profile_field_smart_tickets_order' ), 10, 1 );
 		add_action( 'wpas_user_profile_fields', array( $this, 'profile_field_after_reply' ), 10, 1 );
 		add_action( 'wpas_user_profile_fields', array( $this, 'profile_field_user_view_all_tickets' ), 10, 1 );
-//		add_action( 'wpas_user_profile_fields', array( $this, 'profile_field_agent_department' ), 10, 1 );
 	}
 
 	/**
@@ -99,7 +97,7 @@ class WPAS_User {
 		<tr class="wpas-after-reply-wrap">
 			<th><label><?php esc_attr_e( 'Smart Tickets Order', 'awesome-support' ); ?></label></th>
 			<td>
-				<?php $smart = esc_attr( get_the_author_meta( 'wpas_smart_tickets_order', $user->ID ) ); ?>
+				<?php $smart = esc_attr( get_user_option( 'wpas_smart_tickets_order', $user->ID ) ); ?>
 				<label for="wpas_smart_tickets_order"><input type="checkbox" name="wpas_smart_tickets_order" id="wpas_smart_tickets_order" value="yes" <?php if ( ! empty( $smart ) ) { echo 'checked'; } ?>> <?php esc_html_e( 'Enable', 'awesome-support' ); ?></label>
 				<p class="description"><?php esc_attr_e( 'If Smart Tickets Order is enabled, Awesome Support will display tickets that need immediate attention at the top.', 'awesome-support' ); ?></p>
 			</td>
@@ -125,7 +123,7 @@ class WPAS_User {
 		<tr class="wpas-after-reply-wrap">
 			<th><label for="wpas_after_reply"><?php echo _x( 'After Reply', 'Action after replying to a ticket', 'awesome-support' ); ?></label></th>
 			<td>
-				<?php $after_reply = esc_attr( get_the_author_meta( 'wpas_after_reply', $user->ID ) ); ?>
+				<?php $after_reply = esc_attr( get_user_option( 'wpas_after_reply', $user->ID ) ); ?>
 				<select name="wpas_after_reply" id="wpas_after_reply">
 					<option value=""><?php _e( 'Default', 'awesome-support' ); ?></option>
 					<option value="stay" <?php if ( $after_reply === 'stay' ): ?>selected="selected"<?php endif; ?>><?php _e( 'Stay on screen', 'awesome-support' ); ?></option>
@@ -160,7 +158,7 @@ class WPAS_User {
 		<tr class="wpas-after-reply-wrap">
 			<th><label><?php _e( 'Can Be Assigned', 'awesome-support' ); ?></label></th>
 			<td>
-				<?php $can_assign = esc_attr( get_the_author_meta( 'wpas_can_be_assigned', $user->ID ) ); ?>
+				<?php $can_assign = esc_attr( get_user_option( 'wpas_can_be_assigned', $user->ID ) ); ?>
 				<label for="wpas_can_be_assigned"><input type="checkbox" name="wpas_can_be_assigned" id="wpas_can_be_assigned" value="yes" <?php if ( ! empty( $can_assign ) ) { echo 'checked'; } ?>> <?php _e( 'Yes', 'awesome-support' ); ?></label>
 				<p class="description"><?php _e( 'Can the system assign new tickets to this user?', 'awesome-support' ); ?></p>
 			</td>
@@ -187,7 +185,7 @@ class WPAS_User {
 		<tr class="wpas-after-reply-wrap">
 			<th><label><?php _e( 'View All Tickets', 'awesome-support' ); ?></label></th>
 			<td>
-				<?php $view_all_tickets = esc_attr( get_the_author_meta( 'wpas_view_all_tickets', $user->ID ) ); ?>
+				<?php $view_all_tickets = esc_attr( get_user_option( 'wpas_view_all_tickets', $user->ID ) ); ?>
 				<label for="wpas_view_all_tickets"><input type="checkbox" name="wpas_view_all_tickets" id="wpas_view_all_tickets" value="yes" <?php if ( ! empty( $view_all_tickets ) ) { echo 'checked'; } ?>> <?php _e( 'Yes', 'awesome-support' ); ?></label>
 				<p class="description"><?php _e( 'If agents role is allowed to view all tickets, turn on the option to do so?', 'awesome-support' ); ?></p>
 			</td>
@@ -228,7 +226,7 @@ class WPAS_User {
 			return;
 		}
 
-		$current = get_the_author_meta( 'wpas_department', $user->ID ); ?>
+		$current = get_user_option( 'wpas_department', $user->ID ); ?>
 
 		<tr class="wpas-after-reply-wrap">
 			<th><label><?php _e( 'Department(s)', 'awesome-support' ); ?></label></th>
@@ -267,13 +265,13 @@ class WPAS_User {
 		$department       = isset( $_POST['wpas_department'] ) ? array_map( 'intval', $_POST['wpas_department'] ) : array();
 
 		if ( $wpas_after_reply ) {
-			update_user_meta( $user_id, 'wpas_after_reply', $wpas_after_reply );
+			update_user_option( $user_id, 'wpas_after_reply', $wpas_after_reply );
 		}
 
-		update_user_meta( $user_id, 'wpas_can_be_assigned', $can_assign );
-		update_user_meta( $user_id, 'wpas_smart_tickets_order', $smart );
-		update_user_meta( $user_id, 'wpas_department', $department );
-		update_user_meta( $user_id, 'wpas_view_all_tickets', $view_all_tickets );
+		update_user_option( $user_id, 'wpas_can_be_assigned', $can_assign );
+		update_user_option( $user_id, 'wpas_smart_tickets_order', $smart );
+		update_user_option( $user_id, 'wpas_department', $department );
+		update_user_option( $user_id, 'wpas_view_all_tickets', $view_all_tickets );
 
 	}
 
@@ -288,7 +286,7 @@ class WPAS_User {
 	 */
 	public function enable_assignment( $user_id ) {
 		if ( user_can( $user_id, 'edit_ticket' ) && ! user_can( $user_id, 'administrator' ) ) {
-			update_user_meta( $user_id, 'wpas_can_be_assigned', 'yes' );
+			update_user_option( $user_id, 'wpas_can_be_assigned', 'yes' );
 		}
 	}
 

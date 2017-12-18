@@ -6,8 +6,8 @@
  * @package   Awesome_Support
  * @author    Julien Liabeuf <julien@liabeuf.fr>
  * @license   GPL-2.0+
- * @link      http://themeavenue.net
- * @copyright 2014 ThemeAvenue
+ * @link      https://getawesomesupport.com
+ * @copyright 2014-2017 AwesomeSupport
  */
 class WPAS_File_Upload {
 
@@ -71,7 +71,10 @@ class WPAS_File_Upload {
 
 			add_action( 'wpas_add_reply_admin_after', array( $this, 'new_reply_backend_attachment' ), 10, 2 );
 			add_action( 'post_edit_form_tag', array( $this, 'add_form_enctype' ), 10, 1 );
-			add_action( 'wpas_admin_after_wysiwyg', array( $this, 'upload_field' ), 10, 0 );
+			
+			add_filter( 'wpas_admin_tabs_after_reply_wysiwyg', array( $this, 'upload_field_add_tab' ) , 11, 1 ); // Register attachments tab under reply wysiwyg
+			add_filter( 'wpas_admin_tabs_after_reply_wysiwyg_attachments_content', array( $this, 'upload_field_tab_content' ) , 11, 1 ); // Return content for attachments tab
+			
 			add_action( 'before_delete_post', array( $this, 'delete_attachments' ), 10, 1 );
 			add_action( 'wpas_backend_ticket_content_after', array( $this, 'show_attachments' ), 10, 1 );
 			add_action( 'wpas_backend_reply_content_after', array( $this, 'show_attachments' ), 10, 1 );
@@ -302,43 +305,11 @@ class WPAS_File_Upload {
 	public function set_upload_dir( $upload ) {
 
 		/* Get the ticket ID */
-		$ticket_id = ! is_null( $this->parent_id ) ? $this->parent_id : $this->post_id;
+		$ticket_id = ! empty( $this->parent_id ) ? $this->parent_id : $this->post_id;
 
 		if ( empty( $ticket_id ) ) {
 			return $upload;
 		}
-
-		if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
-			/* On the front-end, we make sure that a new ticket or a reply is being submitted */
-			//if ( ! is_admin() ) {
-			//	if ( ! isset( $_POST['wpas_title'] ) && ! isset( $_POST['wpas_user_reply'] ) ) {
-			//		return $upload;
-			//	}
-			//}
-
-			//if ( is_admin() ) {
-
-			/* Are we in the right post type? */
-
-			//if ( ! isset( $_POST['post_type'] ) || 'ticket' !== $_POST['post_type'] && 'wpas_unassigned_mail' !== $_POST['post_type'] ) {
-			//	return $upload;
-			//}
-
-			//if ( ! isset( $_POST['wpas_reply'] ) ) {
-			//	return $upload;
-			//}
-
-			//}
-		} elseif ( $_SERVER['REQUEST_METHOD'] == 'GET' ) {
-
-			if ( ! isset( $_GET['action'] ) || $_GET['action'] !== 'delete' ) {
-				return $upload;
-			}
-
-		} else {
-			return $upload;
-		}
-
 
 		if ( ! $this->can_attach_files() ) {
 			return $upload;
@@ -358,6 +329,14 @@ class WPAS_File_Upload {
 
 		/* Create the directory if it doesn't exist yet, make sure it's protected otherwise */
 		if ( ! is_dir( $dir ) ) {
+
+		    if ( $_SERVER['REQUEST_METHOD'] == 'GET'
+			    && isset( $_GET['action'] )
+                && $_GET['action'] === 'delete'
+            ) {
+				return $upload;
+			}
+
 			$this->create_upload_dir( $dir );
 		} else {
 			$this->protect_upload_dir( $dir );
@@ -378,7 +357,7 @@ class WPAS_File_Upload {
 	 */
 	public function create_upload_dir( $dir ) {
 
-		$make = mkdir( $dir );
+		$make = wp_mkdir_p ( $dir );
 
 		if ( true === $make ) {
 			$this->protect_upload_dir( $dir );
@@ -399,12 +378,29 @@ class WPAS_File_Upload {
 	 */
 	protected function protect_upload_dir( $dir ) {
 
-		$filename = $dir . '/.htaccess';
+		if ( is_writable( $dir ) ) {
+			
+			$filename = $dir . '/.htaccess';
+			
+			$filecontents = wpas_get_option( 'htaccess_contents_for_attachment_folders', 'Options -Indexes' ) ;
+			if ( empty( $filecontents ) ) {
+				$filecontents = 'Options -Indexes' ;
+			}
 
-		if ( ! file_exists( $filename ) ) {
-			$file = fopen( $filename, 'a+' );
-			fwrite( $file, 'Options -Indexes' );
-			fclose( $file );
+			if ( ! file_exists( $filename ) ) {
+				$file = fopen( $filename, 'a+' );
+				if ( false <> $file ) {
+					fwrite( $file, $filecontents );
+					fclose( $file );
+				} else {
+					// attempt to record failure...
+					wpas_write_log('file-uploader','unable to write .htaccess file to folder ' . $dir ) ;
+				}
+			}
+		} else {
+			// folder isn't writable so no point in attempting to do it...
+			// log the error in our log files instead...
+			wpas_write_log('file-uploader','The folder ' . $dir . ' is not writable.  So we are unable to write a .htaccess file to this folder' ) ;			
 		}
 
 	}
@@ -446,6 +442,35 @@ class WPAS_File_Upload {
 		$attachments = new WPAS_Custom_Field( $this->index, $attachments_args );
 		echo $attachments->get_output();
 
+	}
+	
+	/**
+	 * 
+	 * Register attachments tab under reply wysiwyg
+	 * 
+	 * @param array $tabs
+	 * 
+	 * @return array
+	 */
+	public function upload_field_add_tab( $tabs ) {
+		
+		$tabs['attachments'] = __( 'Attachments' , 'awesome-support' );
+		
+		return $tabs;
+	}
+	
+	/**
+	 * 
+	 * Return content for attachments tab
+	 * 
+	 * @param string $content
+	 * 
+	 * @return string
+	 */
+	public function upload_field_tab_content( $content ) {
+		ob_start();
+		$this->upload_field();
+		return ob_get_clean();
 	}
 
 	/**
@@ -567,7 +592,13 @@ class WPAS_File_Upload {
 							/**
 							 * Prepare attachment link
 							 */
-							$link = add_query_arg( array( 'wpas-attachment' => $attachment['id'] ), home_url() );
+							if ( false === boolval( wpas_get_option( 'unmask_attachment_links', false ) ) ) {
+								// mask or obscure attachment links
+								$link = add_query_arg( array( 'wpas-attachment' => $attachment['id'] ), home_url() );
+							} else {
+								// show full link
+								$link = $attachment['url'];
+							}
 
 							?>
 							<li><a href="<?php echo $link; ?>" target="_blank"><?php echo $name; ?></a> <?php echo $filesize; ?></li><?php
@@ -821,7 +852,7 @@ class WPAS_File_Upload {
 
 		if ( empty( $post ) ) {
 			$protocol = stripos( $_SERVER['SERVER_PROTOCOL'], 'https' ) === true ? 'https://' : 'http://';
-			$post_id  = url_to_postid( $protocol . $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'] );
+			$post_id  = url_to_postid( $protocol . $_SERVER['SERVER_NAME'] . ':' . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'] );
 			$post     = get_post( $post_id );
 		}
 
@@ -833,7 +864,7 @@ class WPAS_File_Upload {
 		 * on the submission page or on a ticket details page.
 		 */
 		if ( ! is_admin() ) {
-			if ( 'ticket' !== $post->post_type && $submission !== $post->ID ) {
+			if ( ! empty( $post) && 'ticket' !== $post->post_type && $submission !== $post->ID ) {
 				return $file;
 			}
 		}
@@ -988,7 +1019,15 @@ class WPAS_File_Upload {
 
 		if ( ( isset( $_POST['wpas_nonce'] ) || isset( $_POST['client_reply'] ) ) || isset( $_POST['wpas_reply'] ) ) {
 			$this->post_id   = intval( $reply_id );
-			$this->parent_id = intval( $_POST['ticket_id'] );
+			if( isset( $_POST['ticket_id'] ) ){
+				$this->parent_id = intval( $_POST['ticket_id'] );
+			}else{
+				/**
+				 * Ruleset bug fix on missing parent ID
+				 * Get parent post ID from reply ID
+				*/
+				$this->parent_id = wp_get_post_parent_id( $reply_id );
+			}
 			$this->process_upload();
 		}
 	}
@@ -1031,11 +1070,10 @@ class WPAS_File_Upload {
 	 */
 	public function delete_attachments( $post_id ) {
 
-		global $post_type;
-
-		if ( 'ticket' !== $post_type && 'wpas_unassigned_mail' !== $post_type ) {
-			return;
-		}
+		$post = get_post( $post_id );
+		if( empty( $post ) || 'ticket' !== $post->post_type ) {
+		    return;
+        }
 
 		$this->post_id = $post_id;
 
@@ -1044,6 +1082,13 @@ class WPAS_File_Upload {
 		if ( ! empty( $attachments ) ) {
 
 			$args = array();
+
+			// Remove attachment folder
+			$upload = wp_get_upload_dir();
+
+			if ( ! file_exists( $upload['path'] ) ) {
+				return;
+			}
 
 			/**
 			 * wpas_attachments_before_delete fires before deleting attachments
@@ -1057,13 +1102,6 @@ class WPAS_File_Upload {
 
 			foreach ( $attachments as $id => $attachment ) {
 				wp_delete_attachment( $id, true );
-			}
-
-			// Remove attachment folder
-			$upload = wp_get_upload_dir();
-
-			if ( ! file_exists( $upload['path'] ) ) {
-				return;
 			}
 
 			$it    = new RecursiveDirectoryIterator( $upload['path'], RecursiveDirectoryIterator::SKIP_DOTS );

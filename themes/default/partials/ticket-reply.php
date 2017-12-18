@@ -8,10 +8,10 @@
  * will be overwritten during next update of the plugin.
  *
  * @package   Awesome Support/Templates/Reply
- * @author    ThemeAvenue <web@themeavenue.net>
+ * @author    AwesomeSupport <contact@getawesomesupport.com>
  * @license   GPL-2.0+
- * @link      http://themeavenue.net
- * @copyright 2016 ThemeAvenue
+ * @link      https://getawesomesupport.com
+ * @copyright 2016-2017 AwesomeSupport
  */
 
 // If this file is called directly, abort.
@@ -20,8 +20,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 /* Get the user role */
-$user_role = get_the_author_meta( 'roles' );
-$user_role = $user_role[0];
+$user_role = $user->roles[0];
 ?>
 
 <tr id="reply-<?php echo the_ID(); ?>" class="wpas-reply-single wpas-status-<?php echo get_post_status(); ?> wpas_user_<?php echo $user_role; ?>" valign="top">
@@ -38,14 +37,14 @@ $user_role = $user_role[0];
 
 		<td style="width: 64px;">
 			<div class="wpas-user-profile">
-				<?php echo get_avatar( get_the_author_meta( 'user_email' ), 64, get_option( 'avatar_default' ) ); ?>
+				<?php echo apply_filters('wpas_fe_template_detail_reply_author_avatar', get_avatar( get_userdata( $user->ID )->user_email, 64, get_option( 'avatar_default' ) ), $post ); ?>
 			</div>
 		</td>
 
 		<td>
 			<div class="wpas-reply-meta">
 				<div class="wpas-reply-user">
-					<strong class="wpas-profilename"><?php echo $user->data->display_name; ?></strong>
+					<strong class="wpas-profilename"><?php echo apply_filters('wpas_fe_template_detail_reply_display_name', $user->data->display_name, $post ); ?></strong>
 				</div>
 				<div class="wpas-reply-time">
 					<time class="wpas-timestamp" datetime="<?php echo get_the_date( 'Y-m-d\TH:i:s' ) . wpas_get_offset_html5(); ?>">

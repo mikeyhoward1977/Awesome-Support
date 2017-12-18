@@ -69,7 +69,7 @@ if ( false === $items ) {
 		if ( false === $items ):
 			?><p>To check out all our addons please visit <a href="http://getawesomesupport.com/addons" target="_blank">http://getawesomesupport.com/addons</a></p><?php
 		else:
-			// wpas_debug_display( $items );
+
 			foreach ( $items as $key => $item ):
 
 				/* Get the item price */
@@ -81,9 +81,16 @@ if ( false === $items ) {
 				}
 
 				/* This item has variable pricing */
+				/* 'singlesite' object element covers most pricing items for awesome support. */
+				/* But some items like paid support starts at 2 sites. Note the use of curly  */
+				/* brackets for those because the object element starts with a number.        */
 				else {
 					if ( isset( $item->pricing->singlesite ) ) {
 						$price = number_format( $item->pricing->singlesite, 0 );
+					} elseif ( isset( $item->pricing->{'2sites'} ) ) {
+						$price = number_format( $item->pricing->{'2sites'}, 0 );
+					} elseif ( isset( $item->pricing->singlesiteupdatesonlynosupport ) ) {
+						$price = number_format( $item->pricing->singlesiteupdatesonlynosupport, 0 );
 					}
 				} ?>
 

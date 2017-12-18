@@ -189,7 +189,12 @@ function wpas_insert_user( $data = array(), $notify = true ) {
 		}
 
 		// Let's create the user username and make sure it's unique
-		$username   = sanitize_user( strtolower( $user['first_name'] ) . strtolower( $user['last_name'] ) );
+		if ( isset( $data['user_login'] ) ) {
+			$username = $data['user_login'];
+		} else {
+			$username   = sanitize_user( strtolower( $user['first_name'] ) . strtolower( $user['last_name'] ) );
+		}
+		
 		$user_check = get_user_by( 'login', $username );
 
 		if ( is_a( $user_check, 'WP_User' ) ) {
@@ -338,8 +343,13 @@ function wpas_try_login( $data ) {
 			exit;
 
 		} elseif ( $login instanceof WP_User ) {
+
+			// Filter to allow redirection of successful login
+			$redirect_to = apply_filters( 'wpas_try_login_redirect', $redirect_to, $redirect_to, $login );
+
 			wp_safe_redirect( $redirect_to );
 			exit;
+
 		} else {
 			wpas_add_error( 'login_failed', __( 'We were unable to log you in for an unknown reason.', 'awesome-support' ) );
 			wp_safe_redirect( $redirect_to );
@@ -414,26 +424,31 @@ function wpas_can_reply_ticket( $admins_allowed = false, $post_id = null ) {
 		global $current_user;
 
 		if ( ! current_user_can( 'reply_ticket' ) ) {
-			return false;
+			// return false;
+			return apply_filters( 'wpas_can_also_reply_ticket', false, $post_id, $author_id, 1 );
 		}
 
 		$user_id = $current_user->data->ID;
 
 		/* If the current user is the author then yes */
 		if ( $user_id == $author_id ) {
-			return true;
+			// return true;
+			return apply_filters( 'wpas_can_also_reply_ticket', true, $post_id, $author_id, 2 );
 		} else {
 
 			if ( current_user_can( 'edit_ticket' ) && true === $admins_allowed ) {
-				return true;
+				// return true;
+				return apply_filters( 'wpas_can_also_reply_ticket', true, $post_id, $author_id, 3 );
 			} else {
-				return false;
+				// return false;
+				return apply_filters( 'wpas_can_also_reply_ticket', false, $post_id, $author_id, 4 );
 			}
 
 		}
 
 	} else {
-		return false;
+		// return false;
+		return apply_filters( 'wpas_can_also_reply_ticket', false, $post_id, $author_id, 5 );
 	}
 
 }
@@ -767,7 +782,7 @@ function wpas_users_dropdown( $args = array() ) {
 	foreach ( $all_users->members as $user ) {
 
 		/* This user was already added, skip it */
-		if ( ! empty( $args['selected'] ) && $user->user_id === intval( $args['selected'] ) ) {
+		if ( ! empty( $args['selected'] ) && intval( $user->user_id ) === intval( $args['selected'] ) ) {
 			continue;
 		}
 
@@ -956,7 +971,7 @@ function wpas_mailgun_check( $data = '' ) {
 
 }
 
-add_action( 'wp_ajax_wpas_get_users', 'wpas_get_users_ajax' );
+add_action( 'wp_ajax_wpas_get_users', 'wpas_get_users_ajax',11,0 );
 /**
  * Get AS users using Ajax
  *
@@ -976,6 +991,7 @@ function wpas_get_users_ajax( $args = array() ) {
 	);
 
 	if ( empty( $args ) ) {
+		$args = array();
 		foreach ( $defaults as $key => $value ) {
 			if ( isset( $_POST[ $key ] ) ) {
 				$args[ $key ] = $_POST[ $key ];
@@ -995,7 +1011,7 @@ function wpas_get_users_ajax( $args = array() ) {
 			'exclude'     => array_map( 'intval', array_filter( (array) $args['exclude'] ) ),
 			'search'      => array(
 				'query'    => sanitize_text_field( $args['q'] ),
-				'fields'   => array( 'user_nicename', 'display_name' ),
+				'fields'   => array( 'user_nicename', 'display_name', 'id', 'user_email' ),
 				'relation' => 'OR'
 			)
 		)
@@ -1041,7 +1057,7 @@ function wpas_has_smart_tickets_order( $user_id = 0 ) {
 	// If the user is not an agent this is irrelevant. Just return false.
 	if ( user_can( $user_id, 'edit_ticket' ) ) {
 
-		$smart = esc_attr( get_the_author_meta( 'wpas_smart_tickets_order', $user_id ) );
+		$smart = esc_attr( get_user_option( 'wpas_smart_tickets_order', $user_id ) );
 
 		if ( 'yes' === $smart ) {
 			$value = true;

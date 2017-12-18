@@ -13,7 +13,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 } ?>
 
-<div class="wpas-ticket-addl-parties-mb">
+<div class="wpas-custom-fields wpas-ticket-addl-parties-mb">
 	<?php
 
 	do_action( 'wpas_mb_details_before_ticket_addl_parties' );
@@ -78,13 +78,14 @@ if ( ! defined( 'WPINC' ) ) {
 
 	// Show free-form interested parties (name / email )
 	?><strong><?php
-	echo _e( 'Note: These fields are notational only. They do not participate in notifications!', 'awesome-support' );	
-	?></strong><hr /><?php
-	WPAS()->custom_fields->display_single_field('first_addl_interested_party_name');
-	WPAS()->custom_fields->display_single_field('first_addl_interested_party_email');
-	WPAS()->custom_fields->display_single_field('second_addl_interested_party_name');
-	WPAS()->custom_fields->display_single_field('second_addl_interested_party_email');
-
+	if ( isset( $options['show_third_party_fields'] ) && true === boolval( $options['show_third_party_fields'] ) ) {
+		echo _e( 'Note: These fields are notational only. They do not participate in notifications!', 'awesome-support' );	
+		?></strong><hr /><?php
+		WPAS()->custom_fields->display_single_field('first_addl_interested_party_name');
+		WPAS()->custom_fields->display_single_field('first_addl_interested_party_email');
+		WPAS()->custom_fields->display_single_field('second_addl_interested_party_name');
+		WPAS()->custom_fields->display_single_field('second_addl_interested_party_email');
+	}
 	do_action( 'wpas_mb_details_after_addl_parties' );
 	?>
 </div>

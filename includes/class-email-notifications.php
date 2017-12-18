@@ -12,10 +12,10 @@
  * server for e-mail routing in order to ensure a safe delivery.
  *
  * @package   Awesome Support
- * @author    ThemeAvenue <web@themeavenue.net>
+ * @author    AwesomeSupport <contact@getawesomesupport.com>
  * @license   GPL-2.0+
- * @link      http://themeavenue.net
- * @copyright 2014 ThemeAvenue
+ * @link      https://getawesomesupport.com
+ * @copyright 2014-2017 AwesomeSupport
  */
 class WPAS_Email_Notification {
 
@@ -24,7 +24,7 @@ class WPAS_Email_Notification {
 	 * 
 	 * @var integer
 	 */
-	private $post_id;
+	protected $post_id;
 
 	/**
 	 * ID of the related ticket.
@@ -34,8 +34,8 @@ class WPAS_Email_Notification {
 	 *
 	 * @var  integer
 	 */
-	private $ticket_id;
-
+	protected $ticket_id;
+	
 	/**
 	 * Class constructor.
 	 * 
@@ -62,7 +62,7 @@ class WPAS_Email_Notification {
 		} else {
 			$reply           = $this->get_reply();
 			$this->ticket_id = $reply->post_parent;
-		}
+		} 
 
 	}
 
@@ -79,7 +79,7 @@ class WPAS_Email_Notification {
 	}
 
 	/**
-	 * Ge the post object for the reply.
+	 * Get the post object for the reply.
 	 *
 	 * @since  3.0.2
 	 * @return boolean|object The reply object if there is a reply, false otherwise
@@ -101,7 +101,7 @@ class WPAS_Email_Notification {
 	}
 
 	/**
-	 * Ge the post object for the ticket.
+	 * Get the post object for the ticket.
 	 *
 	 * @since  3.0.2
 	 * @return boolean|object The ticket object if there is a reply, false otherwise
@@ -256,13 +256,13 @@ class WPAS_Email_Notification {
 	public function fetch( $contents ) {
 
 		$tags = $this->get_tags_values();
-
+		
 		foreach ( $tags as $tag ) {
 
 			$id       = $tag['tag'];
-			$value    = $tag['value'];
+			$value    = isset( $tag['value'] ) ? $tag['value'] : '';
 			$contents = str_replace( $id, $value, $contents );
-
+			
 		}
 
 		return $contents;
@@ -312,11 +312,11 @@ class WPAS_Email_Notification {
 			),
 			array(
 				'tag' 	=> '{ticket_link}',
-				'desc' 	=> __( 'Displays a link to public ticket', 'awesome-support' )
+				'desc' 	=> __( 'Displays a link to the ticket', 'awesome-support' )
 			),
 			array(
 				'tag' 	=> '{ticket_url}',
-				'desc' 	=> __( 'Displays the URL <strong>only</strong> (not a link link) to public ticket', 'awesome-support' )
+				'desc' 	=> __( 'Displays the URL <strong>only</strong> (not a link) to the ticket', 'awesome-support' )
 			),
 			array(
 				'tag' 	=> '{ticket_admin_link}',
@@ -353,7 +353,7 @@ class WPAS_Email_Notification {
 	public function get_tags_values() {
 
 		/* Get all available tags */
-		$tags = self::get_tags();
+		$tags = $this->get_tags();
 
 		/* This is where we save the tags with their new value */
 		$new = array();
@@ -439,7 +439,6 @@ class WPAS_Email_Notification {
 				case 'message':
 					$tag['value'] = $this->ticket_id === $this->post_id ? $this->get_ticket()->post_content : $this->get_reply()->post_content;
 					break;
-
 
 			}
 
@@ -529,9 +528,15 @@ class WPAS_Email_Notification {
 				break;
 
 		}
+		
+		$pre_fetch_content = apply_filters( 'wpas_email_notifications_pre_fetch_' . $part, $value, $this->post_id, $case );
+		
+		if( 'content' === $part && false !== strpos( $pre_fetch_content, '{attachments}' ) ) {
+			$this->link_attachments = true;
+		}
 
-		return $this->fetch( apply_filters( 'wpas_email_notifications_pre_fetch_' . $part, $value, $this->post_id, $case ) );
-
+		return $this->fetch( $pre_fetch_content );
+		
 	}
 
 	/**
@@ -543,7 +548,7 @@ class WPAS_Email_Notification {
 	 *
 	 * @return string
 	 */
-	private function get_formatted_email( $content = '' ) {
+	public function get_formatted_email( $content = '' ) {
 
 		if ( false === (bool) wpas_get_option( 'use_email_template', true ) ) {
 			return $content;
@@ -669,9 +674,12 @@ class WPAS_Email_Notification {
 				$recipients = wpas_get_ticket_agents( $this->ticket_id );
 			}
 		}
-		
+				
 		foreach( $recipients as $recipient ) {
-			$recipient_emails[] = $recipient->user_email;
+			if( $recipient instanceof WP_User ) {
+				$recipient_emails[] = array( 'user_id' => $recipient->ID, 'email' => $recipient->user_email );
+			}
+
 		}
 		
 		/**
@@ -732,21 +740,41 @@ class WPAS_Email_Notification {
 			$case,
 			$this->ticket_id
 		);
-
-		// We need to send notifications separately per recipient.
-		if( is_array($email['recipient_email']) ) {
-			$mail = false;
-			foreach($email['recipient_email'] as $r_email) {
-				if( wp_mail( $r_email, $email['subject'], $email['body'], $email['headers'] ) ) {
-					$mail = true;
-				}
-			}
-		} else {
-			$mail = wp_mail( $email['recipient_email'], $email['subject'], $email['body'], $email['headers'] );
-		}
-
 		
-
+		$attachments = array();
+		if( isset( $this->link_attachments ) && true === $this->link_attachments ) {
+			$attachments = apply_filters( 'wpas_email_notification_attachments', $attachments, $case, $this->ticket_id, $this->post_id );
+		}
+		
+		
+		if( !is_array( $email['recipient_email'] ) ) {
+			$email['recipient_email'] = array( $email['recipient_email'] );
+		}
+		
+		
+		// We need to send notifications separately per recipient.
+		$mail = false;
+		foreach( $email['recipient_email'] as $r_email ) {
+			
+			$email_headers = $email['headers'];
+			
+			$to_email = $r_email;
+			
+			if( is_array( $r_email ) &&  isset( $r_email['email'] ) && $r_email['email'] ) {
+				$to_email = $r_email['email'];
+			}
+			
+			if( is_array( $r_email ) && isset( $r_email['cc_addresses'] ) && !empty( $r_email['cc_addresses'] ) ) {
+				$email_headers[] = 'Cc: ' . implode( ',', $r_email['cc_addresses'] );
+			}
+			
+			if( wp_mail( $to_email, $email['subject'], $email['body'], $email_headers, $attachments ) ) {
+				$mail = true;
+			}
+		}		
+		
+		
+		
 		return $mail;
 
 	}

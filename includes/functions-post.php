@@ -321,6 +321,12 @@ function wpas_insert_ticket( $data = array(), $post_id = false, $agent_id = fals
 	/* Set the ticket as open. */
 	add_post_meta( $ticket_id, '_wpas_status', 'open', true );
 
+	/* Next - update other some meta values. If you add or delete from this list you also */
+	/* need to do the same thing in the /includes/admin/functions-post.php file */
+	add_post_meta( $ticket_id, '_wpas_last_reply_date', null, true );
+	add_post_meta( $ticket_id, '_wpas_last_reply_date_gmt', null, true );
+	add_post_meta( $ticket_id, '_wpas_is_waiting_client_reply', ! user_can( $data['post_author'], 'edit_ticket' ), true  );
+
 	if ( false === $agent_id ) {
 		$agent_id = wpas_find_agent( $ticket_id );
 	}
@@ -339,7 +345,7 @@ function wpas_insert_ticket( $data = array(), $post_id = false, $agent_id = fals
 	/* Update the channel on the ticket - but only if the $update is false which means we've got a new ticket */
 	/* Need to update it here because some of the action hooks fired above will overwrite the term.			  */
 	If (! empty( $channel_term ) && ( ! $update ) ) {
-		wpas_set_ticket_channel( $ticket_id , $channel_term );
+		wpas_set_ticket_channel( $ticket_id , $channel_term, false );
 	}	
 	
 	/**
@@ -358,10 +364,19 @@ function wpas_insert_ticket( $data = array(), $post_id = false, $agent_id = fals
  *
  * @param numeric		$ticket_id
  * @param string		$channel_term
+ * @param string		$overwrite	whether or not to overwrite existing channel on the ticket - set to false by default 
  *
  * @return void
  */
- function wpas_set_ticket_channel( $ticket_id = -1, $channel_term = 'other' ) {
+ function wpas_set_ticket_channel( $ticket_id = -1, $channel_term = 'other', $overwrite = false ) {
+	 
+	 /* Does a term already exist on the ticket?  If so, do not overrite it if $overwrite is false */
+	 if ( false === $overwrite ) {
+		 $existing_channel = wp_get_post_terms($ticket_id,'ticket_channel');
+		 if ( ! empty( $existing_channel ) ) {
+			 return ;
+		 }
+	 }	 
 
 	/*  get the term id because wp_set_object_terms require an id instead of just a string */
 	$arr_the_term_id = term_exists( $channel_term, 'ticket_channel' );
@@ -1000,6 +1015,17 @@ function wpas_insert_reply( $data, $post_id = false ) {
 		do_action( 'wpas_add_reply_public_after', $reply_id, $data );
 
 	}
+	
+	/**
+	 * Fire wpas_add_reply_complete after the reply and attachments was successfully added.
+	 */
+	do_action( 'wpas_add_reply_complete', $reply_id, $data );
+
+	/* . */
+	update_post_meta( $data[ 'post_parent' ], '_wpas_last_reply_date', current_time( 'mysql' ) );
+	update_post_meta( $data[ 'post_parent' ], '_wpas_last_reply_date_gmt', current_time( 'mysql', 1 ) );
+
+	update_post_meta( $data[ 'post_parent' ], '_wpas_is_waiting_client_reply', ! current_user_can( 'edit_ticket' )  );
 
 	return $reply_id;
 
@@ -1316,7 +1342,7 @@ function wpas_update_ticket_status( $post_id, $status ) {
  *
  * @return integer|boolean            ID of the post meta if exists, true on success or false on failure
  */
-function wpas_close_ticket( $ticket_id, $user_id = 0 ) {
+function wpas_close_ticket( $ticket_id, $user_id = 0, $skip_user_validation = false ) {
 
 	global $current_user;
 
@@ -1325,8 +1351,10 @@ function wpas_close_ticket( $ticket_id, $user_id = 0 ) {
 		$user_id = $current_user->ID;
 	}
 
-	if ( ! current_user_can( 'close_ticket' ) ) {
-		wp_die( __( 'You do not have the capacity to close this ticket', 'awesome-support' ), __( 'Can’t close ticket', 'awesome-support' ), array( 'back_link' => true ) );
+	if ( ! $skip_user_validation ) {
+		if ( ! current_user_can( 'close_ticket' ) ) {
+			wp_die( __( 'You do not have the capacity to close this ticket', 'awesome-support' ), __( 'Can’t close ticket', 'awesome-support' ), array( 'back_link' => true ) );
+		}
 	}
 
 	$ticket_id = intval( $ticket_id );
@@ -1438,7 +1466,7 @@ add_action( 'wpas_do_reopen_ticket', 'wpas_reopen_ticket_trigger' );
  * @return void
  */
 function wpas_reopen_ticket_trigger( $data ) {
-
+ 
 	if ( isset( $data['ticket_id'] ) ) {
 
 		$ticket_id = (int) $data['ticket_id'];
@@ -1448,7 +1476,9 @@ function wpas_reopen_ticket_trigger( $data ) {
 			wpas_redirect( 'ticket_reopen', wpas_get_tickets_list_page_url() );
 			exit;
 		}
-
+		
+		do_action( 'wpas_before_customer_reopen_ticket', $ticket_id );
+		
 		wpas_reopen_ticket( $ticket_id );
 		wpas_add_notification( 'ticket_reopen', __( 'The ticket has been successfully re-opened.', 'awesome-support' ) );
 		wpas_redirect( 'ticket_reopen', wp_sanitize_redirect( get_permalink( $ticket_id ) ) );

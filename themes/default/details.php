@@ -38,14 +38,14 @@ $author = get_user_by( 'id', $post->post_author );
 			<tr class="wpas-reply-single" valign="top">
 				<td style="width: 64px;">
 					<div class="wpas-user-profile">
-						<?php echo get_avatar( $post->post_author, '64', get_option( 'avatar_default' ) ); ?>
+						<?php echo apply_filters('wpas_fe_template_detail_author_avatar', get_avatar( $post->post_author, '64', get_option( 'avatar_default' ) ), $post ); ?>
 					</div>
 				</td>
 
 				<td>
 					<div class="wpas-reply-meta">
 						<div class="wpas-reply-user">
-							<strong class="wpas-profilename"><?php echo $author->data->display_name; ?></strong>
+							<strong class="wpas-profilename"><?php echo apply_filters('wpas_fe_template_detail_author_display_name', $author->data->display_name, $post ); ?></strong>
 						</div>
 						<div class="wpas-reply-time">
 							<time class="wpas-timestamp" datetime="<?php echo get_the_date( 'Y-m-d\TH:i:s' ) . wpas_get_offset_html5(); ?>">
@@ -104,8 +104,7 @@ $author = get_user_by( 'id', $post->post_author );
 
 					$replies->the_post();
 					$user      = get_userdata( $post->post_author );
-					$user_role = get_the_author_meta( 'roles' );
-					$user_role = $user_role[0];
+					$user_role = $user->roles[0];
 					$time_ago  = human_time_diff( get_the_time( 'U', $post->ID ), current_time( 'timestamp' ) );
 
 					wpas_get_template( 'partials/ticket-reply', array( 'time_ago' => $time_ago, 'user' => $user, 'post' => $post ) );
@@ -134,14 +133,23 @@ $author = get_user_by( 'id', $post->post_author );
 
 	<?php endif; ?>
 
-	<h3><?php _e( 'Write a reply', 'awesome-support' ); ?></h3>
-
-	<?php
+	<?php 
 	/**
-	 * Display the reply form.
-	 *
-	 * @since 3.0.0
-	 */
-	wpas_get_reply_form(); ?>
+	* Prepare to show the reply form.
+	*/
+	if ( apply_filters('wpas_show_reply_form_front_end',true, $post ) ) { 
+	?>	
+	
+		<h3><?php _e( 'Write a reply', 'awesome-support' ); ?></h3>
+
+		<?php
+		/**
+		 * Display the reply form.
+		 *
+		 * @since 3.0.0
+		 */
+		 
+			wpas_get_reply_form(); 
+	 } ?>
 
 </div>
