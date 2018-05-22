@@ -38,9 +38,6 @@ class WPAS_Custom_Fields {
 				/* Save the custom fields. */
 				add_action( 'wpas_open_ticket_before_assigned', array( $this, 'frontend_submission' ), 10, 2 );
 
-				/* Display the custom fields on the submission form */
-				add_action( 'wpas_submission_form_inside_after_subject', array( $this, 'submission_form_fields' ) );
-
 			}
 		}
 
@@ -351,6 +348,7 @@ class WPAS_Custom_Fields {
 	public function submission_form_fields() {
 
 		$fields = $this->get_custom_fields();
+		$fields = $this->sort_custom_fields( $fields ) ;		
 
 		if ( ! empty( $fields ) ) {
 
@@ -385,9 +383,19 @@ class WPAS_Custom_Fields {
 				
 				$this_field = new WPAS_Custom_Field( $name, $field );
 				$output     = $this_field->get_output();
-
+				
+				/* Add the pre-render action hook */
+				if ( ! empty( $field['args']['pre_render_action_hook_fe'] ) ) {
+					do_action( $field['args']['pre_render_action_hook_fe'] ) ;
+				}
+				
+				/* Render the field */
 				echo $output;
-
+				
+				/* add the post-render action hook */
+				if ( ! empty( $field['args']['post_render_action_hook_fe'] ) ) {
+					do_action( $field['args']['post_render_action_hook_fe'] ) ;
+				}
 			}
 			
 			// If we're painting the custom fields on the front-end wrap them in a bootstrap container class (in this case, just the ending div tag to match the one we added above)
@@ -399,6 +407,23 @@ class WPAS_Custom_Fields {
 		}
 
 	}
+	
+	/**
+	 * Sort custom fields array
+	 *
+	 * @since 4.4.0
+	 *
+	 * @return array
+	 */	
+	public function sort_custom_fields( $fields ) {
+		
+		array_multisort(array_map(function($element) {
+			return $element['args']['order'];
+			}, $fields), $fields );
+			
+		return $fields ;
+		
+	}	
 
 	/**
 	 * Display the backend only custom fields in whatever metabox template it is called from

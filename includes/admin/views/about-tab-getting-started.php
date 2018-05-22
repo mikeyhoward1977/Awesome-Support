@@ -3,15 +3,27 @@
 		<div>			
 			<div class="about-body">
 				<h1>Quick Start With The Basics</h1>
-				<br />
-				<h4><em>Your ticket system is all ready to go so getting started is really simple!  A new page has been created named SUBMIT TICKET. Just add it to your WordPress menu and your customers can start submitting tickets on your site!</em></h4>
-				<h2>View our quick-start and setup videos on our videos page</h2>
-				<a href="https://getawesomesupport.com/videos/"> <img src="<?php echo WPAS_URL; ?>assets/admin/images/about/Videos-749x450.png" alt="Videos Image Link"> </a>
 			</div>
 		</div>
 	</div>
 	
-	<h2> Here are links to our very extensive documentation </h2>	
+	<div class="row">
+		<div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+			<div class="about-body">
+				<p><b>If you completed the SETUP wizard then your ticket system is all ready to go! If you did not complete the wizard follow these steps to quickly set things up. </b></p>
+				<p>1. A new page named <b>SUBMIT TICKET</b> has been automatically created for you. You need to add this page to your WordPress menu so that your customers can start submitting tickets on your site!</p>
+				<p>2. <b>Handle Existing users:</b> If you have existing users you will need to update their roles to be <b>Support User</b>. Or update their existing roles to <a href="https://getawesomesupport.com/documentation/awesome-support/admin-handling-existing-users-after-installation/" target="_blank" >add the proper WordPress security capabilities for Awesome Support ticket users. </a>  This will grant them the permissions necessary to submit tickets.</p>
+				<p>3. <b>Set up new agents:</b> Your primary WordPress Admin is now an agent and will automatically be assigned all new tickets unless you <a href= "https://getawesomesupport.com/documentation/awesome-support/basic-admin-add-agent/" target="_blank" > set up additional agents.</a> </p>
+			</div>
+		</div>	
+		<div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+			<div class="about-body">
+				<a href="https://getawesomesupport.com/videos/"> <img src="<?php echo WPAS_URL; ?>assets/admin/images/about/Videos.png" alt="Videos Image Link"> </a>
+			</div>
+		</div>
+
+	</div>
+
 	<div class="row">
 		<div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
 			<div class="about-body">
